@@ -1,5 +1,5 @@
 import sys
-sys.path.append('C:/Sam/UTB/2024-1/Vision/gait-analysis-using-aruco-markers/.venv/Lib/site-packages/')
+sys.path.append('.venv/Lib/site-packages/')
 
 import cv2
 import numpy as np
