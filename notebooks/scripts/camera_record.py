@@ -9,7 +9,7 @@ myDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 detector = cv2.aruco.ArucoDetector(myDict, detectorParams=cv2.aruco.DetectorParameters())
 
 # Load camera calibration
-calibration = np.load("notebooks\scripts\calibration.npz")
+calibration = np.load("notebooks/data/calibration_OBS.npz")
 MARKER_LENGTH = 0.015
 cameraMatrix = calibration['cameraMatrix']
 distCoeffs = calibration['distCoeffs']
