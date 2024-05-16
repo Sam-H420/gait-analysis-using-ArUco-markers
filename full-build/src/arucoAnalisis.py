@@ -48,6 +48,7 @@ class Camera:
         self.__id = id
         self.__reference = reference
         self.__calibration = calibration
+        self.__projection_matrix = any
 
     @property
     def id(self):
@@ -60,6 +61,10 @@ class Camera:
     @property
     def calibration(self):
         return self.__calibration
+    
+    @property
+    def projection_matrix(self):
+        return self.__projection_matrix
     
     def calibrate_camera(self, imgs: list, board: cv2.aruco.CharucoBoard):
         gray = any
@@ -96,6 +101,12 @@ class Camera:
 
         _, cameraMatrix, distCoeffs, rvecs, tvecs = cv2.calibrateCamera(allObjPoints, allImgPoints, gray.shape[::-1], cameraMatrix, distCoeffs, rvecs, tvecs)
         __calibration = CameraCalibration(cameraMatrix, distCoeffs)
+
+        R = cv2.Rodrigues(rvecs[0])[0]
+        t = tvecs[0]
+        Rt = np.concatenate((np.transpose(R), t), axis=1)
+        self.__projection_matrix = np.matmul(cameraMatrix, Rt)
+
         return CameraCalibration(cameraMatrix, distCoeffs), Pose(rvecs, tvecs)
     
     def __str__(self):
@@ -263,10 +274,15 @@ class Segment:
    
     def draw_landmarks(self, image: cv2.typing.MatLike, calibration: CameraCalibration):
         """Draw the landmarks on the image"""
+        markerPoint, _ = cv2.projectPoints(np.array([[0, 0, 0]], dtype=np.float_), np.array(self.marker.poses[-1].rvec[0]), np.array(self.marker.poses[-1].tvec[0]), calibration.camera_matrix, calibration.dist_coeffs)
         out = image.copy()
+        out = cv2.circle(out, (int(markerPoint[0][0][0]), int(markerPoint[0][0][1])), 5, (0, 255, 255), -1)
         for landmark in self.__landmarks:
             landmark.determine_absolute_poses()
-            out = cv2.drawFrameAxes(out, calibration.camera_matrix, calibration.dist_coeffs, landmark.absolutePoses[-1].rvec, landmark.absolutePoses[-1].tvec, 0.001)
+            # out = cv2.drawFrameAxes(out, calibration.camera_matrix, calibration.dist_coeffs, landmark.absolutePoses[-1].rvec, landmark.absolutePoses[-1].tvec, 0.001)
+            landmarkPoint, _ = cv2.projectPoints(np.array([[0, 0, 0]], dtype=np.float_), np.array(landmark.absolutePoses[-1].rvec[0]), np.array(landmark.absolutePoses[-1].tvec[0]), calibration.camera_matrix, calibration.dist_coeffs)
+            out = cv2.circle(out, (int(landmarkPoint[0][0][0]), int(landmarkPoint[0][0][1])), 5, (0, 255, 255), -1)
+            out = cv2.line(out, (int(markerPoint[0][0][0]), int(markerPoint[0][0][1])), (int(landmarkPoint[0][0][0]), int(landmarkPoint[0][0][1])), (255, 0, 255), 2)
         return out
     
     def clear_landmarks(self):
@@ -317,7 +333,7 @@ class Toolset:
             
             if cameraCalibration is not None:
                 rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], marker_length, cameraCalibration.camera_matrix, cameraCalibration.dist_coeffs)
-                output = cv2.drawFrameAxes(output, cameraCalibration.camera_matrix, cameraCalibration.dist_coeffs, rvecs, tvecs, marker_length)
+                output = cv2.drawFrameAxes(output, cameraCalibration.camera_matrix, cameraCalibration.dist_coeffs, rvecs, tvecs, marker_length/2)
                 pose = Pose(rvecs, tvecs)
                 marker = Marker(self.dictionary, ids[i], corners[i], [pose])
 
@@ -342,7 +358,7 @@ class Toolset:
             if ids[i] in [marker.id for marker in markers]:
                 if cameraCalibration is not None:
                     rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], marker_length, cameraCalibration.camera_matrix, cameraCalibration.dist_coeffs)
-                    output = cv2.drawFrameAxes(output, cameraCalibration.camera_matrix, cameraCalibration.dist_coeffs, rvecs, tvecs, marker_length)
+                    output = cv2.drawFrameAxes(output, cameraCalibration.camera_matrix, cameraCalibration.dist_coeffs, rvecs, tvecs, marker_length/2)
                     pose = Pose(rvecs, tvecs)
                     for marker in markers:
                         if marker.id == ids[i]:
